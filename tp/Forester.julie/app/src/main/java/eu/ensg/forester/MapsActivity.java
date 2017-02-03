@@ -26,9 +26,16 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolygonOptions;
 
+import java.io.IOException;
+
+import eu.ensg.forester.data.ForesterSpatialiteOpenHelper;
+import eu.ensg.spatialite.SpatialiteDatabase;
+import eu.ensg.spatialite.SpatialiteOpenHelper;
 import eu.ensg.spatialite.geom.Point;
 import eu.ensg.spatialite.geom.Polygon;
 import eu.ensg.spatialite.geom.XY;
+
+import static eu.ensg.forester.Constants.EXTRA_SERIAL;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback,LocationListener {
 
@@ -43,6 +50,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Polygon sector = new Polygon();;
     private boolean isRecording = false;
     private com.google.android.gms.maps.model.Polygon currentDrawPolygon;
+
+    // DB
+    private SpatialiteDatabase database;
+
+    // ID user
+    private String IDuser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +84,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 abort_onClick(view);
             }
         });
+
+        IDuser = getIntent().getStringExtra(EXTRA_SERIAL);
+
+        // database
+        initDatabase();
     }
 
 
@@ -199,6 +217,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                             .title("Point of interest")
                                             .snippet(currentPosition.toString()));
             mMap.moveCamera(CameraUpdateFactory.newLatLng(currentPosition.toLatLng()));
+            try {
+                database.exec("INSERT INTO PointOfInterest " +
+                        "(foresterID, name, position) " +
+                        "VALUES ('" + IDuser + "', '" +
+                        "Interest" + "',' " +
+                        currentPosition + "')");
+                Log.i(this.getClass().getName(), "Save");
+
+            } catch (jsqlite.Exception e) {
+                e.printStackTrace();
+            }
         }
         else
             Toast.makeText(this, "Not available",Toast.LENGTH_LONG).show();
@@ -222,6 +251,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         isRecording = false;
         sectorMenu.setVisibility(view.GONE);
         //Log.i(this.getClass().getName(), sector.toString());
+    }
+
+    private void initDatabase() {
+        try {
+            SpatialiteOpenHelper helper = new ForesterSpatialiteOpenHelper(this);
+            database = helper.getDatabase();
+        } catch (jsqlite.Exception | IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }
